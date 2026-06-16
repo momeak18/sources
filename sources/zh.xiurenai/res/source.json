@@ -1,0 +1,20 @@
+{
+	"info": {
+		"id": "zh.xiurenai",
+		"name": "秀人网",
+		"version": 1,
+		"url": "https://www.xiurenai.com",
+		"contentRating": 2,
+		"languages": ["zh"]
+	},
+	"listings": [
+		{
+			"id": "latest",
+			"name": "最新发布"
+		}
+	],
+	"config": {
+		"supportsAuthorSearch": true,
+		"supportsTagSearch": true
+	}
+}
