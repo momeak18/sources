@@ -1,4 +1,4 @@
-name: Build E-Hentai source
+name: Build Aidoku sources
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ on:
     branches:
       - main
     paths:
-      - "sources/zh.xiurenai/**"
+      - "sources/multi.ehentai/**"
       - ".github/workflows/build.yaml"
 
 concurrency:
@@ -41,6 +41,7 @@ jobs:
             ~/.cargo/git/db
             ~/.cargo/bin
             sources/multi.ehentai/target
+            sources/zh.xiurenai/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
@@ -56,9 +57,17 @@ jobs:
           cd sources/multi.ehentai
           aidoku package
 
+      - name: Build XiurenAi source
+        run: |
+          cd sources/zh.xiurenai
+          aidoku package
+
       - name: Build source list
         run: |
-          aidoku build sources/multi.ehentai/package.aix --name "My Aidoku Sources"
+          aidoku build \
+            sources/multi.ehentai/package.aix \
+            sources/zh.xiurenai/package.aix \
+            --name "My Aidoku Sources"
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4.7.2
@@ -67,15 +76,17 @@ jobs:
           folder: public
           git-config-name: GitHub Actions
           git-config-email: github-actions[bot]@users.noreply.github.com
-          commit-message: Update E-Hentai source
+          commit-message: Update Aidoku sources
           single-commit: true
 
       - name: Upload AIX package
         uses: actions/upload-artifact@v6
         if: always()
         with:
-          name: ehentai-package
-          path: sources/multi.ehentai/package.aix
+          name: aix-packages
+          path: |
+            sources/multi.ehentai/package.aix
+            sources/zh.xiurenai/package.aix
           if-no-files-found: warn
 
       - name: Upload source repository

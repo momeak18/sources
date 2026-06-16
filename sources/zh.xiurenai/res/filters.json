@@ -1,0 +1,55 @@
+[
+	{
+		"type": "select",
+		"id": "category",
+		"title": "机构",
+		"options": [
+			"全部",
+			"秀人网",
+			"嗲囡囡",
+			"星颜社",
+			"尤蜜荟",
+			"爱蜜社",
+			"花漾",
+			"克拉女神",
+			"模范学院",
+			"美媛馆",
+			"魅妍社",
+			"蜜桃社",
+			"语画界",
+			"Beautyleg",
+			"ROSI写真",
+			"ARTGRAVIA",
+			"DJAWA"
+		],
+		"ids": [
+			"",
+			"/jigou/xiuren",
+			"/jigou/feilin",
+			"/jigou/xingyan",
+			"/jigou/youmi",
+			"/jigou/imiss",
+			"/jigou/huayang",
+			"/jigou/kelagirls",
+			"/jigou/mfstar",
+			"/jigou/mygirl",
+			"/jigou/mistar",
+			"/jigou/mitao",
+			"/jigou/xiaoyu",
+			"/other/beautyleg",
+			"/other/rosi",
+			"/overseas/artgravia",
+			"/overseas/djawa"
+		]
+	},
+	{
+		"type": "text",
+		"id": "tag",
+		"title": "标签"
+	},
+	{
+		"type": "text",
+		"id": "author",
+		"title": "模特"
+	}
+]
