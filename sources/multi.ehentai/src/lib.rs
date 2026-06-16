@@ -22,59 +22,246 @@ use settings::*;
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
                           (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
 
-fn normalize_tag_term(raw: &str) -> Option<String> {
-    let raw = raw.trim();
+#[allow(dead_code)]
+fn old_normalize_tag_term(raw: &str) -> Option<String> {
+	let raw = raw.trim();
 
-    if raw.is_empty() {
-        return None;
-    }
+	if raw.is_empty() {
+		return None;
+	}
 
-    // 保留排除标签和 OR 标签前缀
-    let (operator, term) = if let Some(value) = raw.strip_prefix('-') {
-        ("-", value.trim())
-    } else if let Some(value) = raw.strip_prefix('~') {
-        ("~", value.trim())
-    } else {
-        ("", raw)
-    };
+	// 保留排除标签和 OR 标签前缀
+	let (operator, term) = if let Some(value) = raw.strip_prefix('-') {
+		("-", value.trim())
+	} else if let Some(value) = raw.strip_prefix('~') {
+		("~", value.trim())
+	} else {
+		("", raw)
+	};
 
-    if term.is_empty() {
-        return None;
-    }
+	if term.is_empty() {
+		return None;
+	}
 
-    // 处理 namespace:tag，例如：
-    // other:ai generated
-    // female:big breasts
-    // artist:artist name
-    if let Some((namespace, tag_name)) = term.split_once(':') {
-        let namespace = namespace.trim();
-        let tag_name = tag_name
-            .trim()
-            .trim_matches('"')
-            .trim_end_matches('$')
-            .trim();
+	// 处理 namespace:tag，例如：
+	// other:ai generated
+	// female:big breasts
+	// artist:artist name
+	if let Some((namespace, tag_name)) = term.split_once(':') {
+		let namespace = namespace.trim();
+		let tag_name = tag_name
+			.trim()
+			.trim_matches('"')
+			.trim_end_matches('$')
+			.trim();
 
-        if namespace.is_empty() || tag_name.is_empty() {
-            return None;
-        }
+		if namespace.is_empty() || tag_name.is_empty() {
+			return None;
+		}
 
-        return Some(format!(
-            r#" {operator}{namespace}:"{tag_name}$""#
-        ));
-    }
+		return Some(format!(r#" {operator}{namespace}:"{tag_name}$""#));
+	}
 
-    // 没有命名空间的普通标签
-    let tag_name = term
-        .trim_matches('"')
-        .trim_end_matches('$')
-        .trim();
+	// 没有命名空间的普通标签
+	let tag_name = term.trim_matches('"').trim_end_matches('$').trim();
 
-    if tag_name.is_empty() {
-        None
-    } else {
-        Some(format!(r#" {operator}"{tag_name}$""#))
-    }
-}						  
+	if tag_name.is_empty() {
+		None
+	} else {
+		Some(format!(r#" {operator}"{tag_name}$""#))
+	}
+}
+struct SearchQuery {
+	text: String,
+	uses_tags: bool,
+}
+
+fn split_tag_operator(raw: &str) -> (&str, &str) {
+	let raw = raw.trim();
+	if let Some(value) = raw.strip_prefix('-') {
+		("-", value.trim())
+	} else if let Some(value) = raw.strip_prefix('~') {
+		("~", value.trim())
+	} else {
+		("", raw)
+	}
+}
+
+fn normalize_namespace(namespace: &str) -> Option<&'static str> {
+	match namespace.trim().to_ascii_lowercase().as_str() {
+		"f" | "female" => Some("female"),
+		"m" | "male" => Some("male"),
+		"x" | "mixed" => Some("mixed"),
+		"artist" => Some("artist"),
+		"group" => Some("group"),
+		"parody" => Some("parody"),
+		"character" => Some("character"),
+		"other" => Some("other"),
+		"language" => Some("language"),
+		"location" => Some("location"),
+		"cosplay" => Some("cosplay"),
+		"cosplayer" => Some("cosplayer"),
+		"reclass" => Some("reclass"),
+		"temp" => Some("temp"),
+		_ => None,
+	}
+}
+
+fn trim_wrapping_quotes(value: &str) -> (&str, bool) {
+	let value = value.trim();
+	if value.len() >= 2 && value.starts_with('"') && value.ends_with('"') {
+		(value[1..value.len() - 1].trim(), true)
+	} else {
+		(value, false)
+	}
+}
+
+fn needs_tag_quotes(value: &str, was_quoted: bool) -> bool {
+	was_quoted || value.chars().any(|c| c.is_whitespace()) || value.ends_with('$')
+}
+
+fn normalize_namespaced_tag(raw: &str) -> Option<String> {
+	let (operator, term) = split_tag_operator(raw);
+	let (namespace, tag_name) = term.split_once(':')?;
+	let namespace = normalize_namespace(namespace)?;
+	let (tag_name, was_quoted) = trim_wrapping_quotes(tag_name);
+	if tag_name.is_empty() {
+		return None;
+	}
+	if needs_tag_quotes(tag_name, was_quoted) {
+		Some(format!(r#"{operator}{namespace}:"{tag_name}""#))
+	} else {
+		Some(format!("{operator}{namespace}:{tag_name}"))
+	}
+}
+
+fn is_namespaced_tag(raw: &str) -> bool {
+	let (_, term) = split_tag_operator(raw);
+	term.split_once(':')
+		.and_then(|(namespace, _)| normalize_namespace(namespace))
+		.is_some()
+}
+
+fn normalize_filter_tag(raw: &str) -> Option<String> {
+	let raw = raw.trim();
+	if raw.is_empty() {
+		return None;
+	}
+	if let Some(tag) = normalize_namespaced_tag(raw) {
+		return Some(tag);
+	}
+
+	let (operator, term) = split_tag_operator(raw);
+	let (term, was_quoted) = trim_wrapping_quotes(term);
+	if term.is_empty() {
+		return None;
+	}
+	if needs_tag_quotes(term, was_quoted) {
+		Some(format!(r#"{operator}"{term}""#))
+	} else {
+		Some(format!("{operator}{term}"))
+	}
+}
+
+fn normalize_clicked_tag_query(raw: &str) -> SearchQuery {
+	let raw = raw.trim();
+	if raw.is_empty() {
+		return SearchQuery {
+			text: String::new(),
+			uses_tags: false,
+		};
+	}
+
+	if let Some(tag) = normalize_namespaced_tag(raw) {
+		SearchQuery {
+			text: tag,
+			uses_tags: true,
+		}
+	} else {
+		SearchQuery {
+			text: raw.into(),
+			uses_tags: false,
+		}
+	}
+}
+
+fn append_search_term(query: &mut String, term: &str) {
+	let term = term.trim();
+	if term.is_empty() {
+		return;
+	}
+	if !query.trim().is_empty() {
+		query.push(' ');
+	}
+	query.push_str(term);
+}
+
+fn build_namespaced_tag(
+	namespace: &str,
+	value: &str,
+	operator: &str,
+	exact: bool,
+) -> Option<String> {
+	let namespace = normalize_namespace(namespace)?;
+	let value = value.trim();
+	if value.is_empty() {
+		return None;
+	}
+	let value: String = if exact && !value.ends_with('$') {
+		format!("{value}$")
+	} else {
+		value.into()
+	};
+	Some(format!(r#"{operator}{namespace}:"{value}""#))
+}
+
+fn is_leap_year(year: i32) -> bool {
+	(year % 4 == 0 && year % 100 != 0) || year % 400 == 0
+}
+
+fn days_in_month(year: i32, month: i32) -> i32 {
+	match month {
+		1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+		4 | 6 | 9 | 11 => 30,
+		2 if is_leap_year(year) => 29,
+		2 => 28,
+		_ => 0,
+	}
+}
+
+fn parse_fixed_digits(value: &str, len: usize) -> Option<i32> {
+	if value.len() != len || !value.chars().all(|c| c.is_ascii_digit()) {
+		return None;
+	}
+	value.parse::<i32>().ok()
+}
+
+fn normalize_seek_date(raw: &str) -> Option<String> {
+	let raw = raw.trim();
+	if raw.is_empty() {
+		return None;
+	}
+	let parts: Vec<&str> = raw.split('-').collect();
+	let year = parse_fixed_digits(parts.first().copied().unwrap_or_default(), 4)?;
+	let month = if parts.len() >= 2 {
+		parse_fixed_digits(parts[1], 2)?
+	} else {
+		1
+	};
+	let day = if parts.len() >= 3 {
+		parse_fixed_digits(parts[2], 2)?
+	} else {
+		1
+	};
+	if parts.len() > 3 || !(1..=12).contains(&month) {
+		return None;
+	}
+	if day < 1 || day > days_in_month(year, month) {
+		return None;
+	}
+	Some(format!("{year:04}-{month:02}-{day:02}"))
+}
+
 struct EHentai;
 
 impl Source for EHentai {
@@ -125,7 +312,9 @@ impl Source for EHentai {
 		let mut qs = QueryParameters::new();
 		qs.push("f_apply", Some("Apply Filter"));
 
-		let mut query_str = query.unwrap_or_default();
+		let normalized_query = normalize_clicked_tag_query(query.as_deref().unwrap_or_default());
+		let mut query_str = normalized_query.text;
+		let mut uses_tag_search = normalized_query.uses_tags;
 		let mut sort_index: i32 = 0;
 
 		let mut cat_mask: u32 = 0;
@@ -148,6 +337,7 @@ impl Source for EHentai {
 		let mut max_pages: Option<String> = None;
 		let mut min_rating: i32 = 0;
 		let mut tag_filter: Option<String> = None;
+		let mut seek_date: Option<String> = None;
 		let mut disable_custom: Vec<String> = Vec::new();
 
 		for filter in filters {
@@ -171,7 +361,10 @@ impl Source for EHentai {
 					if id == "min_rating" {
 						min_rating = value.parse::<i32>().unwrap_or(0);
 					} else if id == "genre" && !value.is_empty() {
-						query_str.push_str(&format!(" \"{}$\"", value));
+						if let Some(term) = build_namespaced_tag("other", &value, "", true) {
+							append_search_term(&mut query_str, &term);
+							uses_tag_search = true;
+						}
 					} else if id == "expunged" && value == "on" {
 						qs.push("f_sh", Some("on"));
 					}
@@ -181,15 +374,29 @@ impl Source for EHentai {
 						"tags" => tag_filter = Some(value),
 						"author" => {
 							// clicked from author field: search both artist and group (OR via ~)
-							query_str.push_str(&format!(
-								" ~artist:\"{}$\" ~group:\"{}$\"",
-								value, value
-							));
+							if let Some(term) = build_namespaced_tag("artist", &value, "~", true) {
+								append_search_term(&mut query_str, &term);
+							}
+							if let Some(term) = build_namespaced_tag("group", &value, "~", true) {
+								append_search_term(&mut query_str, &term);
+							}
+							uses_tag_search = true;
 						}
-						"artist" => query_str.push_str(&format!(" artist:\"{}$\"", value)),
-						"group" => query_str.push_str(&format!(" group:\"{}$\"", value)),
+						"artist" => {
+							if let Some(term) = build_namespaced_tag("artist", &value, "", true) {
+								append_search_term(&mut query_str, &term);
+								uses_tag_search = true;
+							}
+						}
+						"group" => {
+							if let Some(term) = build_namespaced_tag("group", &value, "", true) {
+								append_search_term(&mut query_str, &term);
+								uses_tag_search = true;
+							}
+						}
 						"min_pages" => min_pages = Some(value),
 						"max_pages" => max_pages = Some(value),
+						"seek_date" => seek_date = normalize_seek_date(&value),
 						_ => {}
 					}
 				}
@@ -199,21 +406,30 @@ impl Source for EHentai {
 
 		// Tags from text filter
 		if let Some(tags) = tag_filter {
-    		for raw_tag in tags.split(',') {
-        		if let Some(normalized) = normalize_tag_term(raw_tag) {
-            		query_str.push_str(&normalized);
-        		}
-    		}
+			for raw_tag in tags.split(',') {
+				if let Some(normalized) = normalize_filter_tag(raw_tag) {
+					append_search_term(&mut query_str, &normalized);
+					uses_tag_search = true;
+				}
+			}
 		}
 
 		// Language filter from settings
 		// Note: toplist does not support language filtering, so save query before appending
 		let query_str_for_toplist: String = query_str.trim().into();
 		if let Some(lang) = get_language_filter() {
-			query_str.push_str(&format!(" language:\"{}$\"", lang));
+			if let Some(term) = build_namespaced_tag("language", &lang, "", true) {
+				append_search_term(&mut query_str, &term);
+				uses_tag_search = true;
+			}
 		}
 
 		if !query_str.is_empty() {
+			qs.push("advsearch", Some("1"));
+			qs.push("f_sname", Some("on"));
+			if uses_tag_search || is_namespaced_tag(&query_str) {
+				qs.push("f_stags", Some("on"));
+			}
 			qs.push("f_search", Some(query_str.trim()));
 		}
 
@@ -241,7 +457,6 @@ impl Source for EHentai {
 			qs.push("f_spt", Some(max));
 		}
 
-		let cursor_id = "search";
 		// toplist sorts: 2=Top Yesterday(tl=15), 3=Top Month(tl=13), 4=Top Year(tl=12), 5=Top All(tl=11)
 		let toplist_tl: Option<u32> = match sort_index {
 			2 => Some(15),
@@ -255,7 +470,7 @@ impl Source for EHentai {
 			let p = page - 1;
 			let toplist_qs = if !query_str_for_toplist.is_empty() {
 				format!(
-					"tl={tl}&p={p}&f_apply=Apply+Filter&f_search={}",
+					"tl={tl}&p={p}&advsearch=1&f_sname=on&f_stags=on&f_apply=Apply+Filter&f_search={}",
 					encode_uri_component(query_str_for_toplist)
 				)
 			} else {
@@ -268,9 +483,20 @@ impl Source for EHentai {
 			return Ok(items_to_manga_page(items, has_next, &blocklist));
 		}
 
+		let cursor_id = format!(
+			"search_{}",
+			encode_uri_component(format!(
+				"sort={sort_index}&seek={}&{qs}",
+				seek_date.as_deref().unwrap_or_default()
+			))
+		);
+
 		if page == 1 {
-			clear_page_cursor(cursor_id);
-		} else if let Some(gid) = get_page_cursor(cursor_id) {
+			clear_page_cursor(&cursor_id);
+			if let Some(ref date) = seek_date {
+				qs.push("seek", Some(date));
+			}
+		} else if let Some(gid) = get_page_cursor(&cursor_id) {
 			qs.push("next", Some(&gid));
 		}
 
@@ -284,7 +510,7 @@ impl Source for EHentai {
 
 		let (items, has_next, last_gid) = parse_gallery_list(&html, &base_url);
 		if let Some(gid) = last_gid {
-			set_page_cursor(cursor_id, &gid);
+			set_page_cursor(&cursor_id, &gid);
 		}
 		let blocklist = get_blocklist();
 		Ok(items_to_manga_page(items, has_next, &blocklist))

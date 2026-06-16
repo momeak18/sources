@@ -82,6 +82,12 @@
 	},
 	{
 		"type": "text",
+		"id": "seek_date",
+		"title": "Jump to Date",
+		"placeholder": "YYYY, YYYY-MM, or YYYY-MM-DD"
+	},
+	{
+		"type": "text",
 		"id": "min_pages",
 		"title": "Minimum Pages",
 		"placeholder": "e.g. 10"
