@@ -63,6 +63,27 @@ fn non_empty<T: AsRef<[U]>, U>(v: T) -> Option<T> {
 	if v.as_ref().is_empty() { None } else { Some(v) }
 }
 
+/// Convert an E-Hentai namespaced tag into the value shown by Aidoku.
+/// Keep the existing short prefixes for gender tags, while preserving the
+/// complete namespace for every other tag so information is not discarded.
+fn display_tag(namespace: &str, name: &str) -> String {
+	match namespace {
+		"female" => format!("f:{name}"),
+		"male" => format!("m:{name}"),
+		"mixed" => format!("x:{name}"),
+		_ if namespace.is_empty() => String::from(name),
+		_ => format!("{namespace}:{name}"),
+	}
+}
+
+fn display_raw_tag(tag: String) -> String {
+	if let Some((namespace, name)) = tag.split_once(':') {
+		display_tag(namespace, name)
+	} else {
+		tag
+	}
+}
+
 impl EHGalleryItem {
 	pub fn into_basic_manga(self) -> Manga {
 		Manga {
@@ -116,29 +137,10 @@ impl From<EHGalleryItem> for Manga {
 		// has artist → use artist as authors; no artist → use group as authors
 		let use_artist = !authors.is_empty();
 
-		let other_author_prefix = if use_artist { "group:" } else { "artist:" };
-		let tags: Vec<String> = item
-			.tags
-			.into_iter()
-			.filter(|t| {
-				(t.starts_with("female:") || t.starts_with("male:") || t.starts_with("mixed:"))
-					|| t.starts_with(other_author_prefix)
-			})
-			.map(|t| {
-				if let Some(pos) = t.find(':') {
-					let ns = &t[..pos];
-					let rest = &t[pos + 1..];
-					let short = if ns == "mixed" {
-						'x'
-					} else {
-						ns.chars().next().unwrap_or('?')
-					};
-					format!("{}:{}", short, rest)
-				} else {
-					t
-				}
-			})
-			.collect();
+		// Preserve every tag exposed by the gallery list page. Previously this
+		// discarded parody, character, cosplay, other, location and most author
+		// metadata before it reached Aidoku.
+		let tags: Vec<String> = item.tags.into_iter().map(display_raw_tag).collect();
 
 		let mut desc_parts: Vec<String> = Vec::new();
 		if let Some(ref lang) = item.language {
@@ -246,39 +248,32 @@ impl From<EHGallery> for Manga {
 		let mut tags: Vec<String> = Vec::new();
 
 		for t in gallery.tags {
-			match t.namespace.as_str() {
-				"artist" => artists.push(t.name),
-				"group" => groups.push(t.name),
+			let namespace = t.namespace;
+			let name = t.name;
+
+			// Keep structured fields for Aidoku metadata and the description.
+			match namespace.as_str() {
+				"artist" => artists.push(name.clone()),
+				"group" => groups.push(name.clone()),
 				"parody" => {
-					if t.name != "original" && t.name != "various" {
-						parodies.push(t.name);
+					if name != "original" && name != "various" {
+						parodies.push(name.clone());
 					}
 				}
-				"character" => characters.push(t.name),
-				"cosplay" => cosplay_tags.push(t.name),
-				"other" => other_tags.push(t.name),
-				"location" => location_tags.push(t.name),
-
-				"female" | "male" | "mixed" => {
-					let short = if t.namespace == "mixed" {
-						'x'
-					} else {
-						t.namespace.chars().next().unwrap_or('?')
-					};
-					tags.push(format!("{}:{}", short, t.name));
-				}
-
+				"character" => characters.push(name.clone()),
+				"cosplay" => cosplay_tags.push(name.clone()),
+				"other" => other_tags.push(name.clone()),
+				"location" => location_tags.push(name.clone()),
 				_ => {}
 			}
+
+			// Also expose every webpage tag through Manga.tags instead of dropping
+			// namespaces that are not female/male/mixed.
+			tags.push(display_tag(&namespace, &name));
 		}
 
 		// has artist → use artist as authors; no artist → use group as authors
 		let use_artist = !artists.is_empty();
-		if use_artist {
-			tags.extend(groups.iter().map(|g| format!("g:{g}")));
-		} else {
-			tags.extend(artists.iter().map(|a| format!("a:{a}")));
-		}
 
 		let mut desc_parts: Vec<String> = Vec::new();
 		if !gallery.visible.is_empty() && !gallery.visible.eq_ignore_ascii_case("yes") {
