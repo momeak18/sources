@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(dead_code)]
 
 use aidoku::{
 	Chapter, DeepLinkHandler, DeepLinkResult, DynamicListings, FilterValue, ImageRequestProvider,
@@ -320,9 +321,7 @@ impl Source for EHentai {
 		let mut qs = QueryParameters::new();
 		qs.push("f_apply", Some("Apply Filter"));
 
-		let normalized_query = normalize_clicked_tag_query(query.as_deref().unwrap_or_default());
-		let mut query_str = normalized_query.text;
-		let mut uses_tag_search = normalized_query.uses_tags;
+		let mut query_str = query.unwrap_or_default();
 		let mut sort_index: i32 = 0;
 
 		let mut cat_mask: u32 = 0;
@@ -369,10 +368,7 @@ impl Source for EHentai {
 					if id == "min_rating" {
 						min_rating = value.parse::<i32>().unwrap_or(0);
 					} else if id == "genre" && !value.is_empty() {
-						if let Some(term) = build_namespaced_tag("other", &value, "", true) {
-							append_search_term(&mut query_str, &term);
-							uses_tag_search = true;
-						}
+						query_str.push_str(&format!(" \"{}$\"", value));
 					} else if id == "expunged" && value == "on" {
 						qs.push("f_sh", Some("on"));
 					}
@@ -382,26 +378,13 @@ impl Source for EHentai {
 						"tags" => tag_filter = Some(value),
 						"author" => {
 							// clicked from author field: search both artist and group (OR via ~)
-							if let Some(term) = build_namespaced_tag("artist", &value, "~", true) {
-								append_search_term(&mut query_str, &term);
-							}
-							if let Some(term) = build_namespaced_tag("group", &value, "~", true) {
-								append_search_term(&mut query_str, &term);
-							}
-							uses_tag_search = true;
+							query_str.push_str(&format!(
+								" ~artist:\"{}$\" ~group:\"{}$\"",
+								value, value
+							));
 						}
-						"artist" => {
-							if let Some(term) = build_namespaced_tag("artist", &value, "", true) {
-								append_search_term(&mut query_str, &term);
-								uses_tag_search = true;
-							}
-						}
-						"group" => {
-							if let Some(term) = build_namespaced_tag("group", &value, "", true) {
-								append_search_term(&mut query_str, &term);
-								uses_tag_search = true;
-							}
-						}
+						"artist" => query_str.push_str(&format!(" artist:\"{}$\"", value)),
+						"group" => query_str.push_str(&format!(" group:\"{}$\"", value)),
 						"min_pages" => min_pages = Some(value),
 						"max_pages" => max_pages = Some(value),
 						"seek_date" => seek_date = normalize_seek_date(&value),
@@ -415,9 +398,16 @@ impl Source for EHentai {
 		// Tags from text filter
 		if let Some(tags) = tag_filter {
 			for raw_tag in tags.split(',') {
-				if let Some(normalized) = normalize_filter_tag(raw_tag) {
-					append_search_term(&mut query_str, &normalized);
-					uses_tag_search = true;
+				let t = raw_tag.trim();
+				if t.is_empty() {
+					continue;
+				}
+				if t.starts_with('-') {
+					query_str.push_str(&format!(" -\"{}$\"", t.trim_start_matches('-').trim()));
+				} else if t.starts_with('~') {
+					query_str.push_str(&format!(" ~\"{}$\"", t.trim_start_matches('~').trim()));
+				} else {
+					query_str.push_str(&format!(" \"{}$\"", t));
 				}
 			}
 		}
@@ -426,18 +416,10 @@ impl Source for EHentai {
 		// Note: toplist does not support language filtering, so save query before appending
 		let query_str_for_toplist: String = query_str.trim().into();
 		if let Some(lang) = get_language_filter() {
-			if let Some(term) = build_namespaced_tag("language", &lang, "", true) {
-				append_search_term(&mut query_str, &term);
-				uses_tag_search = true;
-			}
+			query_str.push_str(&format!(" language:\"{}$\"", lang));
 		}
 
 		if !query_str.is_empty() {
-			qs.push("advsearch", Some("1"));
-			qs.push("f_sname", Some("on"));
-			if uses_tag_search || is_namespaced_tag(&query_str) {
-				qs.push("f_stags", Some("on"));
-			}
 			qs.push("f_search", Some(query_str.trim()));
 		}
 
@@ -478,7 +460,7 @@ impl Source for EHentai {
 			let p = page - 1;
 			let toplist_qs = if !query_str_for_toplist.is_empty() {
 				format!(
-					"tl={tl}&p={p}&advsearch=1&f_sname=on&f_stags=on&f_apply=Apply+Filter&f_search={}",
+					"tl={tl}&p={p}&f_apply=Apply+Filter&f_search={}",
 					encode_uri_component(query_str_for_toplist)
 				)
 			} else {
