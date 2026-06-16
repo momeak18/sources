@@ -22,6 +22,59 @@ use settings::*;
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
                           (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
 
+fn normalize_tag_term(raw: &str) -> Option<String> {
+    let raw = raw.trim();
+
+    if raw.is_empty() {
+        return None;
+    }
+
+    // 保留排除标签和 OR 标签前缀
+    let (operator, term) = if let Some(value) = raw.strip_prefix('-') {
+        ("-", value.trim())
+    } else if let Some(value) = raw.strip_prefix('~') {
+        ("~", value.trim())
+    } else {
+        ("", raw)
+    };
+
+    if term.is_empty() {
+        return None;
+    }
+
+    // 处理 namespace:tag，例如：
+    // other:ai generated
+    // female:big breasts
+    // artist:artist name
+    if let Some((namespace, tag_name)) = term.split_once(':') {
+        let namespace = namespace.trim();
+        let tag_name = tag_name
+            .trim()
+            .trim_matches('"')
+            .trim_end_matches('$')
+            .trim();
+
+        if namespace.is_empty() || tag_name.is_empty() {
+            return None;
+        }
+
+        return Some(format!(
+            r#" {operator}{namespace}:"{tag_name}$""#
+        ));
+    }
+
+    // 没有命名空间的普通标签
+    let tag_name = term
+        .trim_matches('"')
+        .trim_end_matches('$')
+        .trim();
+
+    if tag_name.is_empty() {
+        None
+    } else {
+        Some(format!(r#" {operator}"{tag_name}$""#))
+    }
+}						  
 struct EHentai;
 
 impl Source for EHentai {
@@ -146,19 +199,11 @@ impl Source for EHentai {
 
 		// Tags from text filter
 		if let Some(tags) = tag_filter {
-			for raw_tag in tags.split(',') {
-				let t = raw_tag.trim();
-				if t.is_empty() {
-					continue;
-				}
-				if t.starts_with('-') {
-					query_str.push_str(&format!(" -\"{}$\"", t.trim_start_matches('-').trim()));
-				} else if t.starts_with('~') {
-					query_str.push_str(&format!(" ~\"{}$\"", t.trim_start_matches('~').trim()));
-				} else {
-					query_str.push_str(&format!(" \"{}$\"", t));
-				}
-			}
+    		for raw_tag in tags.split(',') {
+        		if let Some(normalized) = normalize_tag_term(raw_tag) {
+            		query_str.push_str(&normalized);
+        		}
+    		}
 		}
 
 		// Language filter from settings

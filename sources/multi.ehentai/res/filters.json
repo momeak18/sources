@@ -75,10 +75,10 @@
 		"default": "0"
 	},
 	{
-		"type": "text",
-		"id": "tags",
-		"title": "Tags",
-		"placeholder": "tag1, -excluded, ~or_tag"
+  		"type": "text",
+  		"id": "tags",
+  		"title": "Tags",
+  		"placeholder": "other:ai generated, -female:glasses, ~language:chinese"
 	},
 	{
 		"type": "text",
