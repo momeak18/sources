@@ -109,20 +109,28 @@ fn normalize_namespace(namespace: &str) -> Option<&'static str> {
 
 fn trim_wrapping_quotes(value: &str) -> (&str, bool) {
 	let value = value.trim();
-	if value.len() >= 2 && value.starts_with('"') && value.ends_with('"') {
-		(value[1..value.len() - 1].trim(), true)
+	if let Some(value) = value.strip_prefix('"').and_then(|v| v.strip_suffix('"')) {
+		(value.trim(), true)
+	} else if let Some(value) = value.strip_prefix('“').and_then(|v| v.strip_suffix('”')) {
+		(value.trim(), true)
+	} else if let Some(value) = value.strip_prefix('＂').and_then(|v| v.strip_suffix('＂')) {
+		(value.trim(), true)
 	} else {
 		(value, false)
 	}
 }
 
 fn needs_tag_quotes(value: &str, was_quoted: bool) -> bool {
-	was_quoted || value.chars().any(|c| c.is_whitespace()) || value.ends_with('$')
+	was_quoted || value.ends_with('$')
+}
+
+fn split_namespace_tag(term: &str) -> Option<(&str, &str)> {
+	term.split_once(':').or_else(|| term.split_once('：'))
 }
 
 fn normalize_namespaced_tag(raw: &str) -> Option<String> {
 	let (operator, term) = split_tag_operator(raw);
-	let (namespace, tag_name) = term.split_once(':')?;
+	let (namespace, tag_name) = split_namespace_tag(term)?;
 	let namespace = normalize_namespace(namespace)?;
 	let (tag_name, was_quoted) = trim_wrapping_quotes(tag_name);
 	if tag_name.is_empty() {
@@ -137,7 +145,7 @@ fn normalize_namespaced_tag(raw: &str) -> Option<String> {
 
 fn is_namespaced_tag(raw: &str) -> bool {
 	let (_, term) = split_tag_operator(raw);
-	term.split_once(':')
+	split_namespace_tag(term)
 		.and_then(|(namespace, _)| normalize_namespace(namespace))
 		.is_some()
 }
