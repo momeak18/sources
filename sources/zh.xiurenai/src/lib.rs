@@ -1,9 +1,10 @@
 #![no_std]
 
 use aidoku::{
-	Chapter, DeepLinkHandler, DeepLinkResult, FilterValue, HashMap, ImageRequestProvider, Listing,
-	ListingProvider, Manga, MangaPageResult, MangaStatus, Page, PageContent, PageContext, Result,
-	Source, UpdateStrategy, Viewer,
+	Chapter, DeepLinkHandler, DeepLinkResult, FilterValue, HashMap, Home, HomeComponent,
+	HomeComponentValue, HomeLayout, ImageRequestProvider, Listing, ListingKind, ListingProvider,
+	Manga, MangaPageResult, MangaStatus, Page, PageContent, PageContext, Result, Source,
+	UpdateStrategy, Viewer,
 	alloc::{String, Vec, format, string::ToString, vec},
 	helpers::{
 		string::StripPrefixOrSelf,
@@ -190,6 +191,32 @@ impl ListingProvider for XiurenAi {
 			}
 			_ => bail!("Invalid listing"),
 		}
+	}
+}
+
+impl Home for XiurenAi {
+	fn get_home(&self) -> Result<HomeLayout> {
+		let html = get_html(&latest_url(1))?;
+		let entries = parse_manga_list(&html).entries;
+
+		if entries.is_empty() {
+			return Ok(HomeLayout::default());
+		}
+
+		Ok(HomeLayout {
+			components: vec![HomeComponent {
+				title: Some("最新发布".into()),
+				subtitle: None,
+				value: HomeComponentValue::Scroller {
+					entries: entries.into_iter().map(Into::into).collect(),
+					listing: Some(Listing {
+						id: "latest".into(),
+						name: "最新发布".into(),
+						kind: ListingKind::Default,
+					}),
+				},
+			}],
+		})
 	}
 }
 
@@ -511,6 +538,7 @@ fn push_unique(values: &mut Vec<String>, value: &str) {
 
 register_source!(
 	XiurenAi,
+	Home,
 	ListingProvider,
 	ImageRequestProvider,
 	DeepLinkHandler
