@@ -8,6 +8,7 @@ on:
       - main
     paths:
       - "sources/multi.ehentai/**"
+      - "sources/zh.xiurenai/**"
       - ".github/workflows/build.yaml"
 
 concurrency:
