@@ -1,0 +1,32 @@
+[
+  {
+    "type": "group",
+    "title": "Settings",
+    "items": [
+      {
+        "type": "text",
+        "key": "url",
+        "placeholder": "Website URL, default https://www.zerobyw33.com",
+        "default": "https://www.zerobyw33.com"
+      },
+      {
+        "type": "text",
+        "key": "username",
+        "placeholder": "Username",
+        "default": ""
+      },
+      {
+        "type": "password",
+        "key": "password",
+        "placeholder": "Password",
+        "default": ""
+      },
+      {
+        "type": "text",
+        "key": "cookie",
+        "placeholder": "Cookie value only, without the Cookie: prefix",
+        "default": ""
+      }
+    ]
+  }
+]

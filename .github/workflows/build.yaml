@@ -8,7 +8,7 @@ on:
       - main
     paths:
       - "sources/multi.ehentai/**"
-      - "sources/zh.xiurenai/**"
+      - "sources/zh.zerobywns/**"
       - ".github/workflows/build.yaml"
 
 concurrency:
@@ -29,7 +29,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
           override: true
           target: wasm32-unknown-unknown
 
@@ -42,7 +42,7 @@ jobs:
             ~/.cargo/git/db
             ~/.cargo/bin
             sources/multi.ehentai/target
-            sources/zh.xiurenai/target
+            sources/zh.zerobywns/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
@@ -53,21 +53,24 @@ jobs:
             cargo install --git https://github.com/Aidoku/aidoku-rs aidoku-cli
           fi
 
-      - name: Build E-Hentai source
+      - name: Build sources
         run: |
-          cd sources/multi.ehentai
-          aidoku package
-
-      - name: Build XiurenAi source
-        run: |
-          cd sources/zh.xiurenai
-          aidoku package
+          for src in \
+            sources/multi.ehentai \
+            sources/zh.zerobywns
+          do
+            echo "Building $src"
+            (
+              cd "$src"
+              aidoku package
+            )
+          done
 
       - name: Build source list
         run: |
           aidoku build \
             sources/multi.ehentai/package.aix \
-            sources/zh.xiurenai/package.aix \
+            sources/zh.zerobywns/package.aix \
             --name "My Aidoku Sources"
 
       - name: Deploy to GitHub Pages
@@ -87,7 +90,7 @@ jobs:
           name: aix-packages
           path: |
             sources/multi.ehentai/package.aix
-            sources/zh.xiurenai/package.aix
+            sources/zh.zerobywns/package.aix
           if-no-files-found: warn
 
       - name: Upload source repository
