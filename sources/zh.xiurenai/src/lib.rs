@@ -247,6 +247,11 @@ fn get_html(url: &str) -> Result<Document> {
 	Ok(Request::get(url)?
 		.header("User-Agent", USER_AGENT)
 		.header("Referer", BASE_URL)
+		.header(
+			"Accept",
+			"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+		)
+		.header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
 		.html()?)
 }
 
@@ -286,17 +291,33 @@ fn tag_url(tag: &str, page: i32) -> String {
 }
 
 fn parse_manga_list(html: &Document) -> MangaPageResult {
-	let entries = html
-		.select(".content .post.grid")
+	let mut entries = parse_post_grid_list(html, ".content .post.grid");
+	if entries.is_empty() {
+		entries = parse_post_grid_list(html, ".post.grid");
+	}
+
+	let has_next_page = html.select_first(".pagination .next-page a").is_some();
+
+	MangaPageResult {
+		entries,
+		has_next_page,
+	}
+}
+
+fn parse_post_grid_list(html: &Document, selector: &str) -> Vec<Manga> {
+	html.select(selector)
 		.map(|items| {
 			let mut entries = Vec::new();
 			let mut seen_keys = Vec::<String>::new();
 
 			for item in items {
-				let Some(link) = item.select_first("h3 a, .img > a") else {
+				let Some(link) = item
+					.select_first("h3 a")
+					.or_else(|| item.select_first(".img > a"))
+				else {
 					continue;
 				};
-				let Some(url) = link.attr("abs:href") else {
+				let Some(url) = element_url(&link, "href") else {
 					continue;
 				};
 				if !url.ends_with(".html") {
@@ -347,14 +368,7 @@ fn parse_manga_list(html: &Document) -> MangaPageResult {
 
 			entries
 		})
-		.unwrap_or_default();
-
-	let has_next_page = html.select_first(".pagination .next-page a").is_some();
-
-	MangaPageResult {
-		entries,
-		has_next_page,
-	}
+		.unwrap_or_default()
 }
 
 fn parse_detail_tags(html: &Document) -> Vec<String> {
@@ -396,20 +410,24 @@ fn first_article_image(html: &Document) -> Option<String> {
 }
 
 fn image_url(image: &Element) -> Option<String> {
-	for attr in [
-		"abs:data-original",
-		"abs:data-src",
-		"abs:data-lazy-src",
-		"abs:src",
-	] {
-		if let Some(url) = image.attr(attr).filter(|url| !url.trim().is_empty()) {
-			return Some(url);
+	for attr in ["data-original", "data-src", "data-lazy-src", "src"] {
+		if let Some(url) = element_url(image, attr).filter(|url| !url.trim().is_empty()) {
+			if !url.contains("wp-content/uploads/2026/03/lazy.gif") {
+				return Some(url);
+			}
 		}
 	}
 
 	image
 		.attr("srcset")
 		.and_then(|srcset| best_srcset_url(&srcset))
+}
+
+fn element_url(element: &Element, attr: &str) -> Option<String> {
+	element
+		.attr(&format!("abs:{attr}"))
+		.or_else(|| element.attr(attr).map(|url| to_absolute_url(&url)))
+		.filter(|url| !url.trim().is_empty())
 }
 
 fn best_srcset_url(srcset: &str) -> Option<String> {
