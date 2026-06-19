@@ -2,15 +2,203 @@
 	"info": {
 		"id": "zh.xiurenai",
 		"name": "秀人网",
-		"version": 2,
+		"version": 3,
 		"url": "https://www.xiurenai.com",
 		"contentRating": 2,
 		"languages": ["zh"]
 	},
 	"listings": [
 		{
-			"id": "latest",
+			"id": "/all",
 			"name": "最新发布"
+		},
+		{
+			"id": "/girls",
+			"name": "网络美女"
+		},
+		{
+			"id": "/jigou",
+			"name": "秀人旗下"
+		},
+		{
+			"id": "/jigou/xiuren",
+			"name": "秀人旗下 - 秀人网"
+		},
+		{
+			"id": "/jigou/feilin",
+			"name": "秀人旗下 - 嗲囡囡"
+		},
+		{
+			"id": "/jigou/xingyan",
+			"name": "秀人旗下 - 星颜社"
+		},
+		{
+			"id": "/jigou/youmi",
+			"name": "秀人旗下 - 尤蜜荟"
+		},
+		{
+			"id": "/jigou/imiss",
+			"name": "秀人旗下 - 爱蜜社"
+		},
+		{
+			"id": "/jigou/huayang",
+			"name": "秀人旗下 - 花漾"
+		},
+		{
+			"id": "/jigou/kelagirls",
+			"name": "秀人旗下 - 克拉女神"
+		},
+		{
+			"id": "/jigou/mfstar",
+			"name": "秀人旗下 - 模范学院"
+		},
+		{
+			"id": "/jigou/mygirl",
+			"name": "秀人旗下 - 美媛馆"
+		},
+		{
+			"id": "/jigou/mistar",
+			"name": "秀人旗下 - 魅妍社"
+		},
+		{
+			"id": "/jigou/mitao",
+			"name": "秀人旗下 - 蜜桃社"
+		},
+		{
+			"id": "/jigou/xiaoyu",
+			"name": "秀人旗下 - 语画界"
+		},
+		{
+			"id": "/other",
+			"name": "其他机构"
+		},
+		{
+			"id": "/other/beautyleg",
+			"name": "其他机构 - Beautyleg"
+		},
+		{
+			"id": "/other/rosi",
+			"name": "其他机构 - ROSI写真"
+		},
+		{
+			"id": "/other/iess",
+			"name": "其他机构 - 异思趣向"
+		},
+		{
+			"id": "/other/twmm",
+			"name": "其他机构 - 台湾正妹"
+		},
+		{
+			"id": "/other/toutiao",
+			"name": "其他机构 - 头条女神"
+		},
+		{
+			"id": "/other/fzly",
+			"name": "其他机构 - 风之领域"
+		},
+		{
+			"id": "/other/cxnv",
+			"name": "其他机构 - 初夏女神"
+		},
+		{
+			"id": "/other/wlcm",
+			"name": "其他机构 - 物恋传媒"
+		},
+		{
+			"id": "/other/qmsy",
+			"name": "其他机构 - 绮梦摄影"
+		},
+		{
+			"id": "/other/llct",
+			"name": "其他机构 - 森萝财团"
+		},
+		{
+			"id": "/other/ugirls",
+			"name": "其他机构 - 爱尤物"
+		},
+		{
+			"id": "/other/mzsock",
+			"name": "其他机构 - 爱美足"
+		},
+		{
+			"id": "/other/zyx",
+			"name": "其他机构 - 足愉心"
+		},
+		{
+			"id": "/other/bobosocks",
+			"name": "其他机构 - 袜啵啵"
+		},
+		{
+			"id": "/other/yituyu",
+			"name": "其他机构 - 艺图语"
+		},
+		{
+			"id": "/other/ligui",
+			"name": "其他机构 - 丽柜"
+		},
+		{
+			"id": "/other/ishow",
+			"name": "其他机构 - 爱秀"
+		},
+		{
+			"id": "/overseas",
+			"name": "国外机构"
+		},
+		{
+			"id": "/overseas/leehee",
+			"name": "国外机构 - LEEHEE EXPRESS"
+		},
+		{
+			"id": "/overseas/bejean-on-line",
+			"name": "国外机构 - Bejean On Line"
+		},
+		{
+			"id": "/overseas/artgravia",
+			"name": "国外机构 - ARTGRAVIA"
+		},
+		{
+			"id": "/overseas/puremedia",
+			"name": "国外机构 - PURE MEDIA"
+		},
+		{
+			"id": "/overseas/onlytease",
+			"name": "国外机构 - OnlyTease"
+		},
+		{
+			"id": "/overseas/digi",
+			"name": "国外机构 - Digi-Gra"
+		},
+		{
+			"id": "/overseas/djawa",
+			"name": "国外机构 - DJAWA"
+		},
+		{
+			"id": "/overseas/cosdoki",
+			"name": "国外机构 - Cosdoki"
+		},
+		{
+			"id": "/overseas/misty",
+			"name": "国外机构 - @misty"
+		},
+		{
+			"id": "/overseas/bomb",
+			"name": "国外机构 - Bomb.TV"
+		},
+		{
+			"id": "/overseas/lovepop",
+			"name": "国外机构 - LOVEPOP"
+		},
+		{
+			"id": "/overseas/minisuka-tv",
+			"name": "国外机构 - Minisuka.tv"
+		},
+		{
+			"id": "/overseas/the-black-alley",
+			"name": "国外机构 - The Black Alley"
+		},
+		{
+			"id": "/overseas/x-city",
+			"name": "国外机构 - X-City"
 		}
 	],
 	"config": {

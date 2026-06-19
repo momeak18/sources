@@ -184,39 +184,65 @@ impl Source for XiurenAi {
 
 impl ListingProvider for XiurenAi {
 	fn get_manga_list(&self, listing: Listing, page: i32) -> Result<MangaPageResult> {
-		match listing.id.as_str() {
-			"latest" => {
-				let html = get_html(&latest_url(page))?;
-				Ok(parse_manga_list(&html))
-			}
+		let url = match listing.id.as_str() {
+			"latest" | "/all" => latest_url(page),
+			path if path.starts_with('/') => paged_path_url(path, page),
 			_ => bail!("Invalid listing"),
-		}
+		};
+		let html = get_html(&url)?;
+		Ok(parse_manga_list(&html))
+	}
+}
+
+fn listing_for_path(path: &str, name: &str) -> Listing {
+	Listing {
+		id: path.into(),
+		name: name.into(),
+		kind: ListingKind::Default,
+	}
+}
+
+fn home_component_from_listing(title: &str, listing: Listing) -> Option<HomeComponent> {
+	let url = match listing.id.as_str() {
+		"/all" => latest_url(1),
+		path => paged_path_url(path, 1),
+	};
+	let entries = get_html(&url)
+		.ok()
+		.map(|html| parse_manga_list(&html).entries)?;
+
+	if entries.is_empty() {
+		None
+	} else {
+		Some(HomeComponent {
+			title: Some(title.into()),
+			subtitle: None,
+			value: HomeComponentValue::Scroller {
+				entries: entries.into_iter().map(Into::into).collect(),
+				listing: Some(listing),
+			},
+		})
 	}
 }
 
 impl Home for XiurenAi {
 	fn get_home(&self) -> Result<HomeLayout> {
-		let html = get_html(&latest_url(1))?;
-		let entries = parse_manga_list(&html).entries;
+		let home_listings = [
+			("最新发布", listing_for_path("/all", "最新发布")),
+			("网络美女", listing_for_path("/girls", "网络美女")),
+			("秀人旗下", listing_for_path("/jigou", "秀人旗下")),
+			("其他机构", listing_for_path("/other", "其他机构")),
+			("国外机构", listing_for_path("/overseas", "国外机构")),
+		];
 
-		if entries.is_empty() {
-			return Ok(HomeLayout::default());
+		let mut components = Vec::new();
+		for (title, listing) in home_listings {
+			if let Some(component) = home_component_from_listing(title, listing) {
+				components.push(component);
+			}
 		}
 
-		Ok(HomeLayout {
-			components: vec![HomeComponent {
-				title: Some("最新发布".into()),
-				subtitle: None,
-				value: HomeComponentValue::Scroller {
-					entries: entries.into_iter().map(Into::into).collect(),
-					listing: Some(Listing {
-						id: "latest".into(),
-						name: "最新发布".into(),
-						kind: ListingKind::Default,
-					}),
-				},
-			}],
-		})
+		Ok(HomeLayout { components })
 	}
 }
 
