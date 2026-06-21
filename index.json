@@ -1,0 +1,44 @@
+{
+  "name": "My Aidoku Sources",
+  "sources": [
+    {
+      "id": "multi.ehentai",
+      "name": "E-Hentai",
+      "version": 6,
+      "iconURL": "icons/multi.ehentai-v6.png",
+      "downloadURL": "sources/multi.ehentai-v6.aix",
+      "languages": [
+        "All",
+        "ja",
+        "en",
+        "zh",
+        "nl",
+        "fr",
+        "de",
+        "hu",
+        "it",
+        "ko",
+        "pl",
+        "pt-BR",
+        "ru",
+        "es",
+        "th",
+        "vi"
+      ],
+      "contentRating": 2,
+      "baseURL": "https://e-hentai.org"
+    },
+    {
+      "id": "zh.zerobywns",
+      "name": "ZeroBy WNS",
+      "version": 10,
+      "iconURL": "icons/zh.zerobywns-v10.png",
+      "downloadURL": "sources/zh.zerobywns-v10.aix",
+      "languages": [
+        "zh"
+      ],
+      "contentRating": 0,
+      "baseURL": "https://www.zerobyw33.com"
+    }
+  ]
+}
