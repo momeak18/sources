@@ -1,6 +1,7 @@
 [
   {
     "type": "select",
+    "name": "Category",
     "title": "Category",
     "options": [
       "All",
@@ -22,6 +23,7 @@
   },
   {
     "type": "select",
+    "name": "Progress",
     "title": "Progress",
     "options": [
       "All",
@@ -31,6 +33,7 @@
   },
   {
     "type": "select",
+    "name": "Type",
     "title": "Type",
     "options": [
       "All",
@@ -41,6 +44,7 @@
   },
   {
     "type": "select",
+    "name": "Area",
     "title": "Area",
     "options": [
       "All",
@@ -49,6 +53,7 @@
   },
   {
     "type": "sort",
+    "name": "Sort",
     "title": "Sort",
     "canAscend": true,
     "options": [

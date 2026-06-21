@@ -44,6 +44,7 @@ const FILTER_ODFIE: [&str; 2] = ["addtime", "edittime"];
 
 #[get_manga_list]
 fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
+	let page = page.max(1);
 	let mut query = String::new();
 	let mut category_id = String::new();
 	let mut jindu = String::new();
@@ -55,10 +56,12 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 	for filter in filters {
 		match filter.kind {
 			FilterType::Title => {
-				query = filter.value.as_string()?.read();
+				if let Ok(value) = filter.value.as_string() {
+					query = value.read();
+				}
 			}
 			FilterType::Select => {
-				let index = filter.value.as_int()? as usize;
+				let index = filter.value.as_int().unwrap_or(0) as usize;
 				match filter.name.as_str() {
 					"Category" => {
 						category_id = FILTER_CATEGORY_ID.get(index).unwrap_or(&"").to_string();
@@ -99,7 +102,7 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 					Ok(value) => value,
 					Err(_) => continue,
 				};
-				let index = value.get("index").as_int()? as usize;
+				let index = value.get("index").as_int().unwrap_or(0) as usize;
 				let ascending = value.get("ascending").as_bool().unwrap_or(false);
 				odfie = FILTER_ODFIE.get(index).unwrap_or(&"addtime").to_string();
 
