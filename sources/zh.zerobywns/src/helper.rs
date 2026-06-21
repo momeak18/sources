@@ -151,18 +151,16 @@ fn merge_cookies(base_cookie: &str, set_cookie_header: &str) -> String {
 }
 
 fn page_requires_login(html: &Node) -> bool {
-	let text = html.html().read();
 	let restricted_text = html.select("#main_message #messagetext").text().read();
-	let lower = text.to_ascii_lowercase();
+	if restricted_text.trim().is_empty() {
+		return false;
+	}
 
 	restricted_text.contains("login")
 		|| restricted_text.contains("Login")
-		|| lower.contains("loginhash")
-		|| lower.contains("member.php?mod=logging")
-		|| lower.contains("permission")
-		|| lower.contains("access denied")
-		|| lower.contains("requires login")
-		|| text.contains("浠呴檺鐢ㄦ埛瑙傜湅")
+		|| restricted_text.contains("permission")
+		|| restricted_text.contains("access denied")
+		|| restricted_text.contains("requires login")
 }
 
 fn login(form_html: &Node, current_cookie: &str) -> Result<String> {

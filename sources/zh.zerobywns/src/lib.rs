@@ -25,6 +25,15 @@ fn json_error() -> AidokuError {
 	}
 }
 
+fn last_query_value(value: String) -> Option<String> {
+	value
+		.split("=")
+		.map(|part| part.to_string())
+		.collect::<Vec<String>>()
+		.pop()
+		.filter(|value| !value.is_empty())
+}
+
 const FILTER_CATEGORY_ID: [&str; 15] = [
 	"", "1", "15", "32", "6", "13", "28", "31", "22", "23", "26", "29", "34", "35", "36",
 ];
@@ -52,35 +61,35 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 				let index = filter.value.as_int()? as usize;
 				match filter.name.as_str() {
 					"Category" => {
-						category_id = FILTER_CATEGORY_ID[index].to_string();
+						category_id = FILTER_CATEGORY_ID.get(index).unwrap_or(&"").to_string();
 						continue;
 					}
 					"Progress" => {
-						jindu = FILTER_JINDU[index].to_string();
+						jindu = FILTER_JINDU.get(index).unwrap_or(&"").to_string();
 						continue;
 					}
 					"Type" => {
-						shuxing = FILTER_SHUXING[index].to_string();
+						shuxing = FILTER_SHUXING.get(index).unwrap_or(&"").to_string();
 						continue;
 					}
 					"Area" => {
-						area = FILTER_AREA[index].to_string();
+						area = FILTER_AREA.get(index).unwrap_or(&"").to_string();
 						continue;
 					}
 					_ => {}
 				}
 				match filter.name.as_str() {
 					"分类" => {
-						category_id = FILTER_CATEGORY_ID[index].to_string();
+						category_id = FILTER_CATEGORY_ID.get(index).unwrap_or(&"").to_string();
 					}
 					"进度" => {
-						jindu = FILTER_JINDU[index].to_string();
+						jindu = FILTER_JINDU.get(index).unwrap_or(&"").to_string();
 					}
 					"性质" => {
-						shuxing = FILTER_SHUXING[index].to_string();
+						shuxing = FILTER_SHUXING.get(index).unwrap_or(&"").to_string();
 					}
 					"地区" => {
-						area = FILTER_AREA[index].to_string();
+						area = FILTER_AREA.get(index).unwrap_or(&"").to_string();
 					}
 					_ => continue,
 				}
@@ -92,7 +101,7 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 				};
 				let index = value.get("index").as_int()? as usize;
 				let ascending = value.get("ascending").as_bool().unwrap_or(false);
-				odfie = FILTER_ODFIE[index].to_string();
+				odfie = FILTER_ODFIE.get(index).unwrap_or(&"addtime").to_string();
 
 				if ascending {
 					order = String::from("asc");
@@ -136,15 +145,10 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 				Ok(node) => node,
 				Err(_) => continue,
 			};
-			let id = item
-				.select("div:nth-child(1)>a")
-				.attr("href")
-				.read()
-				.split("=")
-				.map(|a| a.to_string())
-				.collect::<Vec<String>>()
-				.pop()
-				.unwrap();
+			let id = match last_query_value(item.select("div:nth-child(1)>a").attr("href").read()) {
+				Some(id) => id,
+				None => continue,
+			};
 			let cover = item.select("div:nth-child(1)>a>img").attr("src").read();
 			let title = item
 				.select("div:nth-child(2)>p>a")
@@ -173,14 +177,10 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 				Ok(node) => node,
 				Err(_) => continue,
 			};
-			let id = item
-				.attr("href")
-				.read()
-				.split("=")
-				.map(|a| a.to_string())
-				.collect::<Vec<String>>()
-				.pop()
-				.unwrap();
+			let id = match last_query_value(item.attr("href").read()) {
+				Some(id) => id,
+				None => continue,
+			};
 			let cover = item.select("div:nth-child(1)>img").attr("src").read();
 			let title = item
 				.select("div:nth-child(2)>p")
@@ -232,7 +232,7 @@ fn get_manga_details(id: String) -> Result<Manga> {
 	let categories = html
 		.select(".uk-margin-left>ul>li>.cl>a[href*='category']")
 		.array()
-		.map(|a| a.as_node().unwrap().text().read())
+		.filter_map(|a| a.as_node().ok().map(|node| node.text().read()))
 		.collect::<Vec<String>>();
 	let status = match html
 		.select(".uk-margin-left>ul>li>.cl>span:nth-child(6)")
@@ -278,14 +278,10 @@ fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
 			Ok(item) => item,
 			Err(_) => continue,
 		};
-		let id = item
-			.attr("href")
-			.read()
-			.split("=")
-			.map(|a| a.to_string())
-			.collect::<Vec<String>>()
-			.pop()
-			.unwrap();
+		let id = match last_query_value(item.attr("href").read()) {
+			Some(id) => id,
+			None => continue,
+		};
 		let title = item.text().read();
 		let chapter = (index + 1) as f32;
 		let url = format!(
