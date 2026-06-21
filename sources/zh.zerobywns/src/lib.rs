@@ -51,6 +51,25 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 			FilterType::Select => {
 				let index = filter.value.as_int()? as usize;
 				match filter.name.as_str() {
+					"Category" => {
+						category_id = FILTER_CATEGORY_ID[index].to_string();
+						continue;
+					}
+					"Progress" => {
+						jindu = FILTER_JINDU[index].to_string();
+						continue;
+					}
+					"Type" => {
+						shuxing = FILTER_SHUXING[index].to_string();
+						continue;
+					}
+					"Area" => {
+						area = FILTER_AREA[index].to_string();
+						continue;
+					}
+					_ => {}
+				}
+				match filter.name.as_str() {
 					"分类" => {
 						category_id = FILTER_CATEGORY_ID[index].to_string();
 					}

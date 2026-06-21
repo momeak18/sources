@@ -1,48 +1,60 @@
 [
   {
-    "type": "title"
-  },
-  {
     "type": "select",
-    "name": "分类",
+    "title": "Category",
     "options": [
-      "全部",
-      "卖肉",
-      "战斗",
-      "日常",
-      "后宫",
-      "搞笑",
-      "日常~",
-      "爱情",
-      "冒险",
-      "奇幻",
-      "战斗~",
-      "体育",
-      "机战",
-      "职业",
-      "汉化组跟上，不再更新"
+      "All",
+      "Selling",
+      "Battle",
+      "Daily",
+      "Harem",
+      "Comedy",
+      "Daily 2",
+      "Romance",
+      "Adventure",
+      "Fantasy",
+      "Battle 2",
+      "Sports",
+      "Mecha",
+      "Career",
+      "Inactive"
     ]
   },
   {
     "type": "select",
-    "name": "进度",
-    "options": ["全部", "连载中", "已完结"]
+    "title": "Progress",
+    "options": [
+      "All",
+      "Ongoing",
+      "Completed"
+    ]
   },
   {
     "type": "select",
-    "name": "性质",
-    "options": ["全部", "一半中文一半生肉", "全生肉", "全中文"]
+    "title": "Type",
+    "options": [
+      "All",
+      "Mixed Chinese/Raw",
+      "Raw",
+      "Chinese"
+    ]
   },
   {
     "type": "select",
-    "name": "地区",
-    "options": ["全部", "日本"]
+    "title": "Area",
+    "options": [
+      "All",
+      "Japan"
+    ]
   },
   {
     "type": "sort",
-    "name": "排序",
+    "title": "Sort",
     "canAscend": true,
-    "options": ["上架时间", "更新时间"],
+    "options": [
+      "Added Time",
+      "Updated Time"
+    ],
     "default": {
       "index": 0,
       "ascending": false

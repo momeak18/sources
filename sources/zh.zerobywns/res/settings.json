@@ -6,24 +6,29 @@
       {
         "type": "text",
         "key": "url",
+        "title": "Website URL",
         "placeholder": "Website URL, default https://www.zerobyw33.com",
         "default": "https://www.zerobyw33.com"
       },
       {
         "type": "text",
         "key": "username",
+        "title": "Username",
         "placeholder": "Username",
         "default": ""
       },
       {
-        "type": "password",
+        "type": "text",
         "key": "password",
+        "title": "Password",
         "placeholder": "Password",
+        "secure": true,
         "default": ""
       },
       {
         "type": "text",
         "key": "cookie",
+        "title": "Cookie",
         "placeholder": "Cookie value only, without the Cookie: prefix",
         "default": ""
       }
