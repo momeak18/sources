@@ -151,16 +151,30 @@ fn merge_cookies(base_cookie: &str, set_cookie_header: &str) -> String {
 }
 
 fn page_requires_login(html: &Node) -> bool {
-	let restricted_text = html.select("#main_message #messagetext").text().read();
+	// Discuz uses several different containers for permission errors depending on
+	// whether the response is a normal page, an AJAX dialog, or a mobile page.
+	let mut restricted_text = html.select("#main_message #messagetext").text().read();
+	restricted_text.push_str(&html.select("#messagetext").text().read());
+	restricted_text.push_str(&html.select(".showmessage").text().read());
+	restricted_text.push_str(&html.select(".alert_error").text().read());
 	if restricted_text.trim().is_empty() {
 		return false;
 	}
 
-	restricted_text.contains("login")
-		|| restricted_text.contains("Login")
-		|| restricted_text.contains("permission")
-		|| restricted_text.contains("access denied")
-		|| restricted_text.contains("requires login")
+	let lower = restricted_text.to_ascii_lowercase();
+	lower.contains("login")
+		|| lower.contains("log in")
+		|| lower.contains("permission")
+		|| lower.contains("access denied")
+		|| lower.contains("requires login")
+		|| restricted_text.contains("请先登录")
+		|| restricted_text.contains("需要先登录")
+		|| restricted_text.contains("尚未登录")
+		|| restricted_text.contains("登录后")
+		|| restricted_text.contains("无权访问")
+		|| restricted_text.contains("权限不足")
+		|| restricted_text.contains("没有权限")
+		|| restricted_text.contains("用户组")
 }
 
 fn login(form_html: &Node, current_cookie: &str) -> Result<String> {
@@ -170,14 +184,34 @@ fn login(form_html: &Node, current_cookie: &str) -> Result<String> {
 		return Err(default_error());
 	}
 
-	let formhash = form_html
+	let mut login_cookie = current_cookie.to_string();
+	let mut formhash = form_html
 		.select("input[name=formhash]")
 		.attr("value")
 		.read();
-	let loginhash = form_html
+	let mut loginhash = form_html
 		.select("input[name=loginhash]")
 		.attr("value")
 		.read();
+
+	// A permission error page usually does not contain the login form. Fetch the
+	// real form first so Discuz can provide its CSRF token and session cookie.
+	if formhash.is_empty() {
+		let login_page_url = format!(
+			"{}/member.php?mod=logging&action=login",
+			get_url()
+		);
+		let login_page = fetch_html(&login_page_url, &login_cookie)?;
+		login_cookie = get_cookie();
+		formhash = login_page
+			.select("input[name=formhash]")
+			.attr("value")
+			.read();
+		loginhash = login_page
+			.select("input[name=loginhash]")
+			.attr("value")
+			.read();
+	}
 	let mut params = QueryParameters::new();
 	params.push("username", Some(username.trim()));
 	params.push("cookietime", Some("2592000"));
@@ -202,14 +236,14 @@ fn login(form_html: &Node, current_cookie: &str) -> Result<String> {
 	let body = params.to_string();
 	let request = gen_request(login_url, HttpMethod::Post, &referer_url())
 		.header("Content-Type", "application/x-www-form-urlencoded")
-		.header("Cookie", current_cookie)
+		.header("Cookie", &login_cookie)
 		.body(body.as_bytes());
 
 	request.send();
 
 	let set_cookie = request.get_header("set-cookie").unwrap_or_default().read();
-	let merged_cookie = merge_cookies(current_cookie, &set_cookie);
-	if merged_cookie == current_cookie || !merged_cookie.contains("=") {
+	let merged_cookie = merge_cookies(&login_cookie, &set_cookie);
+	if merged_cookie == login_cookie || !merged_cookie.contains("=") {
 		return Err(default_error());
 	}
 
