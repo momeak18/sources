@@ -15,6 +15,7 @@ mod helper;
 
 #[get_manga_list]
 fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
+	println!("[zh.zerobywns] get_manga_list page={}", page);
 	let mut query = String::new();
 	let mut odfie = String::from("addtime");
 	let mut order = String::from("desc");
@@ -129,6 +130,7 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 		}
 	}
 
+	println!("[zh.zerobywns] manga count={}", mangas.len());
 	Ok(MangaPageResult {
 		has_more: !mangas.is_empty(),
 		manga: mangas,
@@ -137,6 +139,7 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 
 #[get_manga_details]
 fn get_manga_details(id: String) -> Result<Manga> {
+	println!("[zh.zerobywns] get_manga_details id={}", id);
 	let url = format!(
 		"{}/plugin.php?id=jameson_manhua&c=index&a=bofang&kuid={}",
 		helper::get_url(),
@@ -193,6 +196,7 @@ fn get_manga_details(id: String) -> Result<Manga> {
 
 #[get_chapter_list]
 fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
+	println!("[zh.zerobywns] get_chapter_list id={}", id);
 	let url = format!(
 		"{}/plugin.php?id=jameson_manhua&c=index&a=bofang&kuid={}",
 		helper::get_url(),
@@ -233,12 +237,14 @@ fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
 		});
 	}
 	chapters.reverse();
+	println!("[zh.zerobywns] chapter count={}", chapters.len());
 
 	Ok(chapters)
 }
 
 #[get_page_list]
 fn get_page_list(_: String, chapter_id: String) -> Result<Vec<Page>> {
+	println!("[zh.zerobywns] get_page_list chapter_id={}", chapter_id);
 	let url = format!(
 		"{}/plugin.php?id=jameson_manhua&a=read&zjid={}",
 		helper::get_url(),
@@ -270,6 +276,7 @@ fn get_page_list(_: String, chapter_id: String) -> Result<Vec<Page>> {
 		})
 	}
 
+	println!("[zh.zerobywns] page count={}", pages.len());
 	Ok(pages)
 }
 

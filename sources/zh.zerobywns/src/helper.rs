@@ -1,6 +1,6 @@
 use aidoku::{
 	error::{AidokuError, AidokuErrorKind, Result},
-	prelude::format,
+	prelude::{format, println},
 	std::{
 		defaults::{defaults_get, defaults_set},
 		html::Node,
@@ -158,10 +158,12 @@ fn login() -> Result<String> {
 }
 
 pub fn html(url: String) -> Result<Node> {
+	println!("[zh.zerobywns] GET {}", url);
 	let request = apply_headers(Request::get(url.clone()), &get_cookie());
 	request.send();
 	let html = request.html()?;
 	if is_login_required(&html) {
+		println!("[zh.zerobywns] login required");
 		let cookie = login()?;
 		let request = apply_headers(Request::get(url), &cookie);
 		return request.html();
