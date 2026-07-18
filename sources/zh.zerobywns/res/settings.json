@@ -1,18 +1,35 @@
 [
   {
     "type": "group",
-    "title": "Account",
+    "title": "Settings",
     "items": [
       {
-        "type": "login",
-        "key": "login",
-        "title": "Login",
-        "notification": "login",
-        "method": "basic",
-        "refreshes": [
-          "content",
-          "listings"
-        ]
+        "type": "text",
+        "key": "url",
+        "title": "Website URL",
+        "placeholder": "https://www.zerobyw33.com",
+        "default": "https://www.zerobyw33.com"
+      },
+      {
+        "type": "text",
+        "key": "cookie",
+        "title": "Cookie",
+        "placeholder": "Full browser Cookie header",
+        "default": ""
+      },
+      {
+        "type": "text",
+        "key": "username",
+        "title": "Username",
+        "placeholder": "Optional",
+        "default": ""
+      },
+      {
+        "type": "text",
+        "key": "password",
+        "title": "Password",
+        "placeholder": "Optional",
+        "default": ""
       }
     ]
   }

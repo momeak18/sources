@@ -5,7 +5,7 @@ use aidoku::{
 	error::Result,
 	helpers::uri::encode_uri,
 	prelude::*,
-	std::{net::Request, String, Vec},
+	std::{html::Node, net::Request, String, Vec},
 	Chapter, Filter, FilterType, Manga, MangaContentRating, MangaPageResult, MangaStatus,
 	MangaViewer, Page,
 };
@@ -30,11 +30,11 @@ fn query_value(value: String, key: &str) -> Option<String> {
 		.filter(|value| !value.is_empty())
 }
 
-fn first_text(node: &aidoku::std::html::Node, selector: &str) -> String {
+fn first_text(node: &Node, selector: &str) -> String {
 	node.select(selector).text().read().trim().to_string()
 }
 
-fn first_attr(node: &aidoku::std::html::Node, selector: &str, attr: &str) -> String {
+fn first_attr(node: &Node, selector: &str, attr: &str) -> String {
 	node.select(selector).attr(attr).read()
 }
 
@@ -72,8 +72,7 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 			Ok(item) => item,
 			Err(_) => continue,
 		};
-		let href = item.attr("href").read();
-		let id = match query_value(href, "kuid") {
+		let id = match query_value(item.attr("href").read(), "kuid") {
 			Some(id) => id,
 			None => continue,
 		};
@@ -101,9 +100,7 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 fn get_manga_details(id: String) -> Result<Manga> {
 	let url = format!("{}/pc/details/?kuid={}", helper::get_url(), id.clone());
 	let html = helper::html(url.clone())?;
-	let mut author = String::new();
 	let mut categories = Vec::new();
-	let mut status = MangaStatus::Unknown;
 
 	for span in html.select("span.px-3.py-1.bg-gray-100").array() {
 		let span = match span.as_node() {
@@ -111,22 +108,12 @@ fn get_manga_details(id: String) -> Result<Manga> {
 			Err(_) => continue,
 		};
 		let text = span.text().read().trim().to_string();
-		if text.is_empty() {
-			continue;
-		}
-		if text.starts_with("作者:") {
-			author = text.replace("作者:", "").trim().to_string();
-			continue;
-		}
-		if text == "连载中" {
-			status = MangaStatus::Ongoing;
-			continue;
-		}
-		if text == "已完结" {
-			status = MangaStatus::Completed;
-			continue;
-		}
-		if text.starts_with("收藏:") || text.starts_with("人气:") {
+		if text.is_empty()
+			|| text.starts_with("author:")
+			|| text.starts_with("Author:")
+			|| text.starts_with("views:")
+			|| text.starts_with("favorites:")
+		{
 			continue;
 		}
 		categories.push(text);
@@ -136,12 +123,12 @@ fn get_manga_details(id: String) -> Result<Manga> {
 		id,
 		cover: helper::absolute_url(&first_attr(&html, "img[src*='tupa.zerobyw33.com']", "src")),
 		title: first_text(&html, "h1.text-2xl.font-medium"),
-		author,
+		author: String::new(),
 		artist: String::new(),
 		description: first_text(&html, "p[x-ref='summaryText']"),
 		url,
 		categories,
-		status,
+		status: MangaStatus::Unknown,
 		nsfw: MangaContentRating::Suggestive,
 		viewer: MangaViewer::Rtl,
 	})
@@ -159,7 +146,6 @@ fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
 			Ok(item) => item,
 			Err(_) => continue,
 		};
-		let title = item.text().read().trim().to_string();
 		let href = item.attr("href").read();
 		let chapter_id = if href.starts_with("/pc/view/index.php?zjid=") {
 			match query_value(href, "zjid") {
@@ -175,11 +161,10 @@ fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
 			last_zjid += 1;
 			last_zjid.to_string()
 		};
-		let chapter = (chapters.len() + 1) as f32;
 		chapters.push(Chapter {
 			id: chapter_id.clone(),
-			title,
-			chapter,
+			title: item.text().read().trim().to_string(),
+			chapter: (chapters.len() + 1) as f32,
 			url: format!(
 				"{}/pc/view/index.php?zjid={}",
 				helper::get_url(),
@@ -225,7 +210,12 @@ fn get_page_list(_: String, chapter_id: String) -> Result<Vec<Page>> {
 #[modify_image_request]
 fn modify_image_request(request: Request) {
 	let referer = format!("{}/", helper::get_url());
-	let _ = request
+	let cookie = helper::get_cookie();
+	let mut request = request
 		.header("User-Agent", helper::USER_AGENT)
 		.header("Referer", &referer);
+	if !cookie.is_empty() {
+		request = request.header("Cookie", &cookie);
+	}
+	let _ = request;
 }
