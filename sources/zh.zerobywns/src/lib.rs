@@ -13,58 +13,28 @@ use alloc::string::ToString;
 
 mod helper;
 
-const FILTER_CATEGORY_ID: [&str; 15] = [
-	"", "1", "15", "32", "6", "13", "28", "31", "22", "23", "26", "29", "34", "35", "36",
-];
-const FILTER_JINDU: [&str; 3] = ["", "0", "1"];
-const FILTER_SHUXING: [&str; 4] = ["", "一半中文一半生肉", "全生肉", "全中文"];
-const FILTER_AREA: [&str; 2] = ["", "日本"];
-const FILTER_ODFIE: [&str; 2] = ["addtime", "edittime"];
-
 #[get_manga_list]
 fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 	let mut query = String::new();
-	let mut category_id = String::new();
-	let mut jindu = String::new();
-	let mut shuxing = String::new();
-	let mut area = String::new();
 	let mut odfie = String::from("addtime");
 	let mut order = String::from("desc");
 
 	for filter in filters {
 		match filter.kind {
 			FilterType::Title => {
-				query = filter.value.as_string()?.read();
-			}
-			FilterType::Select => {
-				let index = filter.value.as_int()? as usize;
-				match filter.name.as_str() {
-					"分类" => {
-						category_id = FILTER_CATEGORY_ID[index].to_string();
-					}
-					"进度" => {
-						jindu = FILTER_JINDU[index].to_string();
-					}
-					"性质" => {
-						shuxing = FILTER_SHUXING[index].to_string();
-					}
-					"地区" => {
-						area = FILTER_AREA[index].to_string();
-					}
-					_ => continue,
+				if let Ok(value) = filter.value.as_string() {
+					query = value.read();
 				}
 			}
 			FilterType::Sort => {
-				let value = match filter.value.as_object() {
-					Ok(value) => value,
-					Err(_) => continue,
-				};
-				let index = value.get("index").as_int()? as usize;
-				let ascending = value.get("ascending").as_bool().unwrap_or(false);
-				odfie = FILTER_ODFIE[index].to_string();
-
-				if ascending {
-					order = String::from("asc");
+				if let Ok(value) = filter.value.as_object() {
+					let index = value.get("index").as_int().unwrap_or(0);
+					if index == 1 {
+						odfie = String::from("edittime");
+					}
+					if value.get("ascending").as_bool().unwrap_or(false) {
+						order = String::from("asc");
+					}
 				}
 			}
 			_ => continue,
@@ -78,22 +48,6 @@ fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
 			"{}/plugin.php?id=jameson_manhua&c=index&a=ku",
 			helper::get_url()
 		);
-
-		if !category_id.is_empty() {
-			url.push_str(&format!("&category_id={}", category_id));
-		}
-
-		if !jindu.is_empty() {
-			url.push_str(&format!("&jindu={}", jindu));
-		}
-
-		if !shuxing.is_empty() {
-			url.push_str(&format!("&shuxing={}", encode_uri(shuxing)));
-		}
-
-		if !area.is_empty() {
-			url.push_str(&format!("&area={}", encode_uri(area)));
-		}
 
 		url.push_str(&format!("&odfie={}&order={}&page={}", odfie, order, page));
 
@@ -209,7 +163,7 @@ fn get_manga_details(id: String) -> Result<Manga> {
 	let categories = html
 		.select(".uk-margin-left>ul>li>.cl>a[href*='category']")
 		.array()
-		.map(|a| a.as_node().unwrap().text().read())
+		.filter_map(|a| a.as_node().ok().map(|node| node.text().read()))
 		.collect::<Vec<String>>();
 	let status = match html
 		.select(".uk-margin-left>ul>li>.cl>span:nth-child(6)")
@@ -292,13 +246,16 @@ fn get_page_list(_: String, chapter_id: String) -> Result<Vec<Page>> {
 	);
 	let html = helper::html(url)?;
 	let text = html.html().read();
+	let mut pages: Vec<Page> = Vec::new();
 	let list = text
 		.substring_after("let listimg=")
 		.unwrap_or("[]")
 		.substring_before(";")
 		.unwrap_or("[]");
-	let list = json::parse(list)?.as_array()?;
-	let mut pages: Vec<Page> = Vec::new();
+	let list = match json::parse(list).and_then(|value| value.as_array()) {
+		Ok(list) => list,
+		Err(_) => return Ok(pages),
+	};
 
 	for (index, item) in list.enumerate() {
 		let item = match item.as_object() {
