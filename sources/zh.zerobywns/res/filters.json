@@ -1,64 +1,86 @@
 [
   {
     "type": "select",
-    "name": "Category",
+    "id": "category",
     "title": "Category",
     "options": [
       "All",
       "Selling",
-      "Battle",
-      "Daily",
       "Harem",
-      "Comedy",
-      "Daily 2",
-      "Romance",
       "Adventure",
       "Fantasy",
-      "Battle 2",
-      "Sports",
-      "Mecha",
+      "Comedy",
+      "Daily",
       "Career",
+      "Sports",
+      "Battle",
+      "Romance",
+      "Mecha",
+      "Suspense",
+      "Food",
+      "Yuri",
       "Inactive"
+    ],
+    "ids": [
+      "",
+      "1",
+      "6",
+      "22",
+      "23",
+      "13",
+      "28",
+      "35",
+      "29",
+      "15",
+      "31",
+      "34",
+      "40",
+      "41",
+      "42",
+      "43"
     ]
   },
   {
     "type": "select",
-    "name": "Progress",
+    "id": "progress",
     "title": "Progress",
     "options": [
       "All",
       "Ongoing",
       "Completed"
+    ],
+    "ids": [
+      "",
+      "0",
+      "1"
     ]
   },
   {
     "type": "select",
-    "name": "Type",
-    "title": "Type",
+    "id": "language",
+    "title": "Language",
     "options": [
       "All",
+      "Chinese",
       "Mixed Chinese/Raw",
-      "Raw",
-      "Chinese"
-    ]
-  },
-  {
-    "type": "select",
-    "name": "Area",
-    "title": "Area",
-    "options": [
-      "All",
-      "Japan"
+      "Raw"
+    ],
+    "ids": [
+      "",
+      "全中文",
+      "一半中文一半生肉",
+      "全生肉"
     ]
   },
   {
     "type": "sort",
-    "name": "Sort",
+    "id": "sort",
     "title": "Sort",
     "canAscend": true,
     "options": [
-      "Added Time",
-      "Updated Time"
+      "Added",
+      "Views",
+      "Favorites"
     ],
     "default": {
       "index": 0,
