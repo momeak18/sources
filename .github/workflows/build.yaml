@@ -7,7 +7,7 @@ on:
     branches:
       - main
     paths:
-      - "sources/zh.zerobywns/**"
+      - "sources/zh.zerobyw/**"
       - ".github/workflows/build.yaml"
 
 concurrency:

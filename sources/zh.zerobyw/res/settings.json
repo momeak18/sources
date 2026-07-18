@@ -13,6 +13,13 @@
 					"content",
 					"listings"
 				]
+			},
+			{
+				"type": "text",
+				"key": "cookie",
+				"title": "Cookie",
+				"placeholder": "Full browser Cookie header",
+				"default": ""
 			}
 		]
 	}
