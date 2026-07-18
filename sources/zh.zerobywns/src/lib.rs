@@ -3,9 +3,9 @@ extern crate alloc;
 
 use aidoku::{
 	error::Result,
-	helpers::uri::encode_uri,
+	helpers::{substring::Substring, uri::encode_uri},
 	prelude::*,
-	std::{html::Node, net::Request, String, Vec},
+	std::{json, net::Request, String, Vec},
 	Chapter, Filter, FilterType, Manga, MangaContentRating, MangaPageResult, MangaStatus,
 	MangaViewer, Page,
 };
@@ -13,122 +13,225 @@ use alloc::string::ToString;
 
 mod helper;
 
-fn query_value(value: String, key: &str) -> Option<String> {
-	value
-		.split('?')
-		.nth(1)
-		.unwrap_or(&value)
-		.split('&')
-		.find_map(|part| {
-			let mut parts = part.split('=');
-			if parts.next() == Some(key) {
-				parts.next().map(|value| value.to_string())
-			} else {
-				None
-			}
-		})
-		.filter(|value| !value.is_empty())
-}
-
-fn first_text(node: &Node, selector: &str) -> String {
-	node.select(selector).text().read().trim().to_string()
-}
-
-fn first_attr(node: &Node, selector: &str, attr: &str) -> String {
-	node.select(selector).attr(attr).read()
-}
+const FILTER_CATEGORY_ID: [&str; 15] = [
+	"", "1", "15", "32", "6", "13", "28", "31", "22", "23", "26", "29", "34", "35", "36",
+];
+const FILTER_JINDU: [&str; 3] = ["", "0", "1"];
+const FILTER_SHUXING: [&str; 4] = ["", "一半中文一半生肉", "全生肉", "全中文"];
+const FILTER_AREA: [&str; 2] = ["", "日本"];
+const FILTER_ODFIE: [&str; 2] = ["addtime", "edittime"];
 
 #[get_manga_list]
 fn get_manga_list(filters: Vec<Filter>, page: i32) -> Result<MangaPageResult> {
-	let page = page.max(1);
 	let mut query = String::new();
+	let mut category_id = String::new();
+	let mut jindu = String::new();
+	let mut shuxing = String::new();
+	let mut area = String::new();
+	let mut odfie = String::from("addtime");
+	let mut order = String::from("desc");
+
 	for filter in filters {
-		if filter.kind == FilterType::Title {
-			if let Ok(value) = filter.value.as_string() {
-				query = value.read();
+		match filter.kind {
+			FilterType::Title => {
+				query = filter.value.as_string()?.read();
 			}
+			FilterType::Select => {
+				let index = filter.value.as_int()? as usize;
+				match filter.name.as_str() {
+					"分类" => {
+						category_id = FILTER_CATEGORY_ID[index].to_string();
+					}
+					"进度" => {
+						jindu = FILTER_JINDU[index].to_string();
+					}
+					"性质" => {
+						shuxing = FILTER_SHUXING[index].to_string();
+					}
+					"地区" => {
+						area = FILTER_AREA[index].to_string();
+					}
+					_ => continue,
+				}
+			}
+			FilterType::Sort => {
+				let value = match filter.value.as_object() {
+					Ok(value) => value,
+					Err(_) => continue,
+				};
+				let index = value.get("index").as_int()? as usize;
+				let ascending = value.get("ascending").as_bool().unwrap_or(false);
+				odfie = FILTER_ODFIE[index].to_string();
+
+				if ascending {
+					order = String::from("asc");
+				}
+			}
+			_ => continue,
 		}
 	}
 
-	let url = if query.trim().is_empty() {
-		format!(
-			"{}/pc/pc/?order=addtime&dir=desc&page={}",
-			helper::get_url(),
-			page
-		)
+	let mut mangas: Vec<Manga> = Vec::new();
+
+	if query.is_empty() {
+		let mut url = format!(
+			"{}/plugin.php?id=jameson_manhua&c=index&a=ku",
+			helper::get_url()
+		);
+
+		if !category_id.is_empty() {
+			url.push_str(&format!("&category_id={}", category_id));
+		}
+
+		if !jindu.is_empty() {
+			url.push_str(&format!("&jindu={}", jindu));
+		}
+
+		if !shuxing.is_empty() {
+			url.push_str(&format!("&shuxing={}", encode_uri(shuxing)));
+		}
+
+		if !area.is_empty() {
+			url.push_str(&format!("&area={}", encode_uri(area)));
+		}
+
+		url.push_str(&format!("&odfie={}&order={}&page={}", odfie, order, page));
+
+		let html = helper::html(url)?;
+
+		for item in html.select(".uk-card").array() {
+			let item = match item.as_node() {
+				Ok(node) => node,
+				Err(_) => continue,
+			};
+			let id = item
+				.select("div:nth-child(1)>a")
+				.attr("href")
+				.read()
+				.split("=")
+				.map(|a| a.to_string())
+				.collect::<Vec<String>>()
+				.pop()
+				.unwrap_or_default();
+			let cover =
+				helper::absolute_url(&item.select("div:nth-child(1)>a>img").attr("src").read());
+			let title = item
+				.select("div:nth-child(2)>p>a")
+				.text()
+				.read()
+				.trim()
+				.to_string();
+			if id.is_empty() || title.is_empty() {
+				continue;
+			}
+			mangas.push(Manga {
+				id,
+				cover,
+				title,
+				nsfw: MangaContentRating::Suggestive,
+				..Default::default()
+			});
+		}
 	} else {
-		format!(
-			"{}/pc/pc/?keyword={}&order=addtime&dir=desc&page={}",
+		let url = format!(
+			"{}/plugin.php?id=jameson_manhua&c=index&a=search&keyword={}&page={}",
 			helper::get_url(),
 			encode_uri(query),
 			page
-		)
-	};
-	let html = helper::html(url)?;
-	let mut manga: Vec<Manga> = Vec::new();
+		);
+		let html = helper::html(url)?;
 
-	for item in html.select("a.group.block[href*='kuid=']").array() {
-		let item = match item.as_node() {
-			Ok(item) => item,
-			Err(_) => continue,
-		};
-		let id = match query_value(item.attr("href").read(), "kuid") {
-			Some(id) => id,
-			None => continue,
-		};
-		let title = first_text(&item, "h3.manga-card-title");
-		if title.is_empty() {
-			continue;
+		for item in html.select(".uk-card").array() {
+			let item = match item.as_node() {
+				Ok(node) => node,
+				Err(_) => continue,
+			};
+			let id = item
+				.attr("href")
+				.read()
+				.split("=")
+				.map(|a| a.to_string())
+				.collect::<Vec<String>>()
+				.pop()
+				.unwrap_or_default();
+			let cover =
+				helper::absolute_url(&item.select("div:nth-child(1)>img").attr("src").read());
+			let title = item
+				.select("div:nth-child(2)>p")
+				.text()
+				.read()
+				.trim()
+				.to_string();
+			if id.is_empty() || title.is_empty() {
+				continue;
+			}
+			mangas.push(Manga {
+				id,
+				cover,
+				title,
+				nsfw: MangaContentRating::Suggestive,
+				..Default::default()
+			});
 		}
-		let cover = helper::absolute_url(&first_attr(&item, "img", "src"));
-		manga.push(Manga {
-			id,
-			cover,
-			title,
-			nsfw: MangaContentRating::Suggestive,
-			..Default::default()
-		});
 	}
 
 	Ok(MangaPageResult {
-		has_more: !manga.is_empty(),
-		manga,
+		has_more: !mangas.is_empty(),
+		manga: mangas,
 	})
 }
 
 #[get_manga_details]
 fn get_manga_details(id: String) -> Result<Manga> {
-	let url = format!("{}/pc/details/?kuid={}", helper::get_url(), id.clone());
+	let url = format!(
+		"{}/plugin.php?id=jameson_manhua&c=index&a=bofang&kuid={}",
+		helper::get_url(),
+		id.clone()
+	);
 	let html = helper::html(url.clone())?;
-	let mut categories = Vec::new();
-
-	for span in html.select("span.px-3.py-1.bg-gray-100").array() {
-		let span = match span.as_node() {
-			Ok(span) => span,
-			Err(_) => continue,
-		};
-		let text = span.text().read().trim().to_string();
-		if text.is_empty()
-			|| text.starts_with("author:")
-			|| text.starts_with("Author:")
-			|| text.starts_with("views:")
-			|| text.starts_with("favorites:")
-		{
-			continue;
-		}
-		categories.push(text);
-	}
+	let cover = helper::absolute_url(&html.select(".uk-width-medium>img").attr("src").read());
+	let title = html.select(".uk-margin-left>ul>li>h3").text().read();
+	let author = html
+		.select(".uk-margin-left>ul>li>.cl>a[href*='zuozhe']")
+		.text()
+		.read()
+		.replace("作者:", "")
+		.split("×")
+		.map(|a| a.to_string())
+		.collect::<Vec<String>>()
+		.join(", ");
+	let description = html
+		.select(".uk-margin-left>ul>li>.uk-alert")
+		.text()
+		.read()
+		.trim()
+		.to_string();
+	let categories = html
+		.select(".uk-margin-left>ul>li>.cl>a[href*='category']")
+		.array()
+		.map(|a| a.as_node().unwrap().text().read())
+		.collect::<Vec<String>>();
+	let status = match html
+		.select(".uk-margin-left>ul>li>.cl>span:nth-child(6)")
+		.text()
+		.read()
+		.as_str()
+	{
+		"连载中" => MangaStatus::Ongoing,
+		"已完结" => MangaStatus::Completed,
+		_ => MangaStatus::Unknown,
+	};
 
 	Ok(Manga {
 		id,
-		cover: helper::absolute_url(&first_attr(&html, "img[src*='tupa.zerobyw33.com']", "src")),
-		title: first_text(&html, "h1.text-2xl.font-medium"),
-		author: String::new(),
+		cover,
+		title,
+		author,
 		artist: String::new(),
-		description: first_text(&html, "p[x-ref='summaryText']"),
+		description,
 		url,
 		categories,
-		status: MangaStatus::Unknown,
+		status,
 		nsfw: MangaContentRating::Suggestive,
 		viewer: MangaViewer::Rtl,
 	})
@@ -136,72 +239,78 @@ fn get_manga_details(id: String) -> Result<Manga> {
 
 #[get_chapter_list]
 fn get_chapter_list(id: String) -> Result<Vec<Chapter>> {
-	let url = format!("{}/pc/details/?kuid={}", helper::get_url(), id);
+	let url = format!(
+		"{}/plugin.php?id=jameson_manhua&c=index&a=bofang&kuid={}",
+		helper::get_url(),
+		id
+	);
 	let html = helper::html(url)?;
+	let list = html.select(".muludiv>a").array();
 	let mut chapters: Vec<Chapter> = Vec::new();
-	let mut last_zjid = 0;
 
-	for item in html.select(".grid > *").array() {
+	for (index, item) in list.enumerate() {
 		let item = match item.as_node() {
 			Ok(item) => item,
 			Err(_) => continue,
 		};
-		let href = item.attr("href").read();
-		let chapter_id = if href.starts_with("/pc/view/index.php?zjid=") {
-			match query_value(href, "zjid") {
-				Some(id) => {
-					if let Ok(num) = id.parse::<i64>() {
-						last_zjid = num;
-					}
-					id
-				}
-				None => continue,
-			}
-		} else {
-			last_zjid += 1;
-			last_zjid.to_string()
-		};
+		let id = item
+			.attr("href")
+			.read()
+			.split("=")
+			.map(|a| a.to_string())
+			.collect::<Vec<String>>()
+			.pop()
+			.unwrap_or_default();
+		if id.is_empty() {
+			continue;
+		}
+		let title = item.text().read();
+		let url = format!(
+			"{}/plugin.php?id=jameson_manhua&a=read&zjid={}",
+			helper::get_url(),
+			id.clone()
+		);
 		chapters.push(Chapter {
-			id: chapter_id.clone(),
-			title: item.text().read().trim().to_string(),
-			chapter: (chapters.len() + 1) as f32,
-			url: format!(
-				"{}/pc/view/index.php?zjid={}",
-				helper::get_url(),
-				chapter_id
-			),
+			id,
+			title,
+			chapter: (index + 1) as f32,
+			url,
 			..Default::default()
 		});
 	}
-
 	chapters.reverse();
+
 	Ok(chapters)
 }
 
 #[get_page_list]
 fn get_page_list(_: String, chapter_id: String) -> Result<Vec<Page>> {
 	let url = format!(
-		"{}/pc/view/index.php?zjid={}",
+		"{}/plugin.php?id=jameson_manhua&a=read&zjid={}",
 		helper::get_url(),
 		chapter_id
 	);
 	let html = helper::html(url)?;
+	let text = html.html().read();
+	let list = text
+		.substring_after("let listimg=")
+		.unwrap_or("[]")
+		.substring_before(";")
+		.unwrap_or("[]");
+	let list = json::parse(list)?.as_array()?;
 	let mut pages: Vec<Page> = Vec::new();
 
-	for img in html.select("img.manga-image").array() {
-		let img = match img.as_node() {
-			Ok(img) => img,
+	for (index, item) in list.enumerate() {
+		let item = match item.as_object() {
+			Ok(node) => node,
 			Err(_) => continue,
 		};
-		let url = helper::absolute_url(&img.attr("src").read());
-		if url.is_empty() {
-			continue;
-		}
+		let url = helper::absolute_url(&item.get("file").as_string()?.read());
 		pages.push(Page {
-			index: pages.len() as i32,
+			index: index as i32,
 			url,
 			..Default::default()
-		});
+		})
 	}
 
 	Ok(pages)
@@ -209,7 +318,7 @@ fn get_page_list(_: String, chapter_id: String) -> Result<Vec<Page>> {
 
 #[modify_image_request]
 fn modify_image_request(request: Request) {
-	let referer = format!("{}/", helper::get_url());
+	let referer = helper::get_url();
 	let cookie = helper::get_cookie();
 	let mut request = request
 		.header("User-Agent", helper::USER_AGENT)
